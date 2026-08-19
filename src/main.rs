@@ -29,20 +29,29 @@ fn parse_args() -> Args {
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
-
     let args = parse_args();
     let path = config::resolve_config_path(args.config_path);
+    let cfg_result = config::load_from_path(&path);
 
-    let cfg = match config::load_from_path(&path) {
+    // `RUST_LOG` always wins when set; otherwise fall back to `general.log_level`
+    // from the config file, or the tracing_subscriber default (ERROR only) if the
+    // config itself failed to load.
+    let filter = match &cfg_result {
+        Ok(cfg) if std::env::var("RUST_LOG").is_err() => {
+            tracing_subscriber::EnvFilter::new(&cfg.general.log_level)
+        }
+        _ => tracing_subscriber::EnvFilter::from_default_env(),
+    };
+    tracing_subscriber::fmt().with_env_filter(filter).init();
+
+    let cfg = match cfg_result {
         Ok(c) => c,
         Err(e) => {
             tracing::error!("{e:#}");
             return ExitCode::FAILURE;
         }
     };
+    cfg.log();
 
     if let Some(id) = args.dump_raw_id {
         let client = hetzner::HetznerClient::new(

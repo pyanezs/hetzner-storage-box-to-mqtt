@@ -14,10 +14,16 @@ copying `config.example.toml` (see [Dev environment setup](../README.md#dev-envi
 | Field | Type | Required | Default |
 |---|---|---|---|
 | `retry_enabled` | bool | yes | — |
+| `log_level` | string | no | `info` |
 
-Whether to retry a failed Hetzner API call (5xx / connection errors only,
-not 4xx) or a failed MQTT publish, using a fixed backoff:
-2, 4, 8, 16, 32, 64 seconds, then stop.
+`retry_enabled` controls whether to retry a failed Hetzner API call
+(5xx / connection errors only, not 4xx) or a failed MQTT publish, using
+a fixed backoff: 2, 4, 8, 16, 32, 64 seconds, then stop.
+
+`log_level` must be one of `trace`, `debug`, `info`, `warn`, `error`
+(case-insensitive). It's ignored if the `RUST_LOG` environment variable
+is set — `RUST_LOG` always takes precedence and supports tracing's full
+per-module directive syntax (e.g. `hetzner_storage_box_to_mqtt=debug`).
 
 ## `[hetzner]`
 
