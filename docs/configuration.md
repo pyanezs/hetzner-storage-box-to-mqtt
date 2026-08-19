@@ -24,10 +24,12 @@ not 4xx) or a failed MQTT publish, using a fixed backoff:
 | Field | Type | Required | Default |
 |---|---|---|---|
 | `api_token` | string | yes (or via env) | — |
-| `api_base_url` | string | no | `https://api.hetzner.cloud/v1` |
+| `api_base_url` | string | no | `https://api.hetzner.com/v1` |
 
-`api_token` can also be set via the `HETZNER_API_TOKEN` environment
-variable, which takes precedence over the file if set.
+`api_token` can be omitted from the file entirely if `HETZNER_API_TOKEN`
+is set — the environment variable takes precedence over the file when
+both are present, and config loading fails if neither supplies a
+non-empty value.
 
 ## `[mqtt]`
 
@@ -63,10 +65,14 @@ or `publish = false`, is never fetched or published.
 | `publish` | bool | no | `false` |
 | `fields` | list of strings | no (non-empty required if `publish = true`) | `[]` |
 | `field_meta` | table | no | `{}` |
+| `alias` | string | no | Hetzner-reported name |
 
 - `id` is the numeric Hetzner Cloud resource id (not the name) — find it via
   the Hetzner Cloud Console, or run `mise run run -- --dump-raw <id>` once
   you know it.
+- `alias` overrides the Home Assistant device display name for this box.
+  When omitted, the Hetzner API-reported name is used instead.
+  Must not be an empty string if set.
 - `fields` selects which values to publish, as dotted-path strings. Every
   entry must be one of the paths listed in `src/fields.rs`'s `KNOWN_FIELDS`
   — an unknown field name fails config validation with an error naming the

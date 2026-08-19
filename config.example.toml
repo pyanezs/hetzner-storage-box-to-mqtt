@@ -11,7 +11,7 @@ retry_enabled = true
 # precedence over this file if set.
 api_token = "CHANGE_ME"
 # Optional — defaults to this value if omitted.
-api_base_url = "https://api.hetzner.cloud/v1"
+api_base_url = "https://api.hetzner.com/v1"
 
 [mqtt]
 host = "mqtt.example.local"
@@ -37,6 +37,9 @@ id = 12345678
 publish = true
 # See src/fields.rs KNOWN_FIELDS for the full list of selectable field paths.
 fields = ["name", "status", "stats.size", "stats.size_data"]
+# Optional — overrides the Home Assistant device name (defaults to the
+# Hetzner-reported name if omitted).
+# alias = "Backup Box"
 
 # Optional, per-field Home Assistant metadata. Keyed by the exact same dotted-path
 # string used in `fields` above. Any field left out here still publishes fine —
