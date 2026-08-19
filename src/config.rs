@@ -1,4 +1,6 @@
+use crate::schedule;
 use anyhow::{Context, Result, bail};
+use chrono::NaiveTime;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -17,10 +19,28 @@ pub struct General {
     pub retry_enabled: bool,
     #[serde(default = "default_log_level")]
     pub log_level: String,
+    #[serde(default)]
+    pub run_times: Vec<String>,
 }
 
 fn default_log_level() -> String {
     "info".to_string()
+}
+
+impl General {
+    /// Parses and sorts `run_times`. Panics if an entry fails to parse — safe for
+    /// any `Config` from `load_from_path`, since `validate()` always runs first
+    /// and guarantees every entry is a valid `HH:MM` time.
+    pub fn parsed_run_times(&self) -> Vec<NaiveTime> {
+        let mut times: Vec<NaiveTime> = self
+            .run_times
+            .iter()
+            .map(|s| schedule::parse_run_time(s).expect("validated at config load time"))
+            .collect();
+        times.sort();
+        times.dedup();
+        times
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -74,6 +94,7 @@ impl Config {
         tracing::info!(
             retry_enabled = self.general.retry_enabled,
             log_level = %self.general.log_level,
+            run_times = ?self.general.run_times,
             "General config"
         );
         tracing::info!(
@@ -151,6 +172,11 @@ fn validate(config: &Config) -> Result<()> {
             config.general.log_level
         );
     }
+    for time_str in &config.general.run_times {
+        if let Err(e) = schedule::parse_run_time(time_str) {
+            bail!("general.run_times: {e}");
+        }
+    }
     if config.hetzner.api_token.trim().is_empty() {
         bail!(
             "hetzner.api_token must not be empty (set it in the config file or HETZNER_API_TOKEN)"
@@ -196,6 +222,7 @@ mod tests {
 [general]
 retry_enabled = true
 log_level = "debug"
+run_times = ["03:00", "15:30"]
 
 [hetzner]
 api_token = "secret-token"
@@ -289,6 +316,7 @@ publish = false
         const NO_TOKEN: &str = r#"
 [general]
 retry_enabled = true
+run_times = ["03:00"]
 
 [hetzner]
 
@@ -319,6 +347,7 @@ tls = false
         const NO_LOG_LEVEL: &str = r#"
 [general]
 retry_enabled = true
+run_times = ["03:00"]
 
 [hetzner]
 api_token = "secret-token"
@@ -342,6 +371,61 @@ tls = false
         let mut config: Config = toml::from_str(SAMPLE).unwrap();
         config.general.log_level = "verbose".to_string();
         assert!(validate(&config).is_err());
+    }
+
+    #[test]
+    fn allows_empty_run_times() {
+        let mut config: Config = toml::from_str(SAMPLE).unwrap();
+        config.general.run_times.clear();
+        assert!(validate(&config).is_ok());
+    }
+
+    #[test]
+    fn run_times_defaults_to_empty_when_absent() {
+        const NO_RUN_TIMES: &str = r#"
+[general]
+retry_enabled = true
+
+[hetzner]
+api_token = "secret-token"
+
+[mqtt]
+host = "mqtt.example.local"
+port = 1883
+username = "mqtt-user"
+password = "mqtt-pass"
+client_id = "hetzner-storage-box-to-mqtt"
+base_topic = "hetzner_storage_box"
+discovery_prefix = "homeassistant"
+tls = false
+"#;
+        let config: Config = toml::from_str(NO_RUN_TIMES).unwrap();
+        assert!(config.general.run_times.is_empty());
+    }
+
+    #[test]
+    fn rejects_malformed_run_time_entry() {
+        let mut config: Config = toml::from_str(SAMPLE).unwrap();
+        config.general.run_times.push("25:00".to_string());
+        assert!(validate(&config).is_err());
+    }
+
+    #[test]
+    fn parsed_run_times_is_sorted_regardless_of_input_order() {
+        let mut config: Config = toml::from_str(SAMPLE).unwrap();
+        config.general.run_times = vec![
+            "15:30".to_string(),
+            "03:00".to_string(),
+            "09:00".to_string(),
+        ];
+        assert_eq!(
+            config.general.parsed_run_times(),
+            vec![
+                NaiveTime::from_hms_opt(3, 0, 0).unwrap(),
+                NaiveTime::from_hms_opt(9, 0, 0).unwrap(),
+                NaiveTime::from_hms_opt(15, 30, 0).unwrap(),
+            ]
+        );
     }
 
     #[test]

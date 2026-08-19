@@ -4,6 +4,7 @@ pub mod fields;
 pub mod hetzner;
 pub mod mqtt;
 pub mod retry;
+pub mod schedule;
 
 use anyhow::{Context, Result, bail};
 use config::Config;
@@ -13,9 +14,11 @@ use hetzner::HetznerClient;
 /// fields, and publishes state + Home Assistant discovery messages for all of them
 /// in one MQTT session.
 ///
-/// A single box's fetch failure doesn't abort the run — the other boxes still get
-/// published — but the run still exits with an error at the end so cron/systemd
-/// alerting notices.
+/// This performs a single fetch-and-publish cycle. A single box's fetch failure
+/// doesn't abort the cycle — the other boxes still get published — but the cycle
+/// still returns an error at the end so the caller can log/alert on it. Callers
+/// that run this repeatedly (see `main.rs`) should treat a returned error as
+/// "this cycle failed", not fatal to the process.
 pub async fn run(config: &Config) -> Result<()> {
     let client = HetznerClient::new(
         config.hetzner.api_base_url.clone(),

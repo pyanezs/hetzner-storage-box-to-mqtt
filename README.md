@@ -9,8 +9,14 @@ and publishes it to MQTT, with Home Assistant MQTT Discovery support.
 +-------------+               +-----+                   +--------------------+       +----------------+
 ```
 
-The app is one-shot: it fetches configured storage boxes once, publishes once, and exits.
-It's meant to be triggered externally (cron, systemd timer), not run as a daemon.
+The app runs a fetch-and-publish cycle immediately on startup, then again
+at each local clock time listed in `general.run_times` in the config file
+(e.g. `03:00`, `15:30`), and keeps running as a long-lived process until it
+receives SIGINT or SIGTERM. A failed cycle is logged but doesn't stop the
+process — the next scheduled cycle still runs — deploy it under systemd or
+Docker for restart-on-crash and log collection. If `run_times` is empty or
+omitted, the app runs that one startup cycle and exits instead of staying
+resident.
 
 ## Table of contents
 

@@ -9,6 +9,11 @@ retry_enabled = true
 # Ignored if the RUST_LOG environment variable is set — RUST_LOG always takes
 # precedence, and supports tracing's full per-module directive syntax.
 log_level = "info"
+# Daily clock times (24-hour HH:MM, local timezone) at which to run the
+# fetch-and-publish cycle. The first cycle always runs immediately on
+# startup, in addition to these. Optional — if empty or omitted, the app
+# runs that one startup cycle and exits instead of staying resident.
+run_times = ["03:00", "15:30"]
 
 [hetzner]
 # Can also be set via the HETZNER_API_TOKEN environment variable, which takes

@@ -15,6 +15,7 @@ copying `config.example.toml` (see [Dev environment setup](../README.md#dev-envi
 |---|---|---|---|
 | `retry_enabled` | bool | yes | — |
 | `log_level` | string | no | `info` |
+| `run_times` | list of strings | no | `[]` |
 
 `retry_enabled` controls whether to retry a failed Hetzner API call
 (5xx / connection errors only, not 4xx) or a failed MQTT publish, using
@@ -24,6 +25,15 @@ a fixed backoff: 2, 4, 8, 16, 32, 64 seconds, then stop.
 (case-insensitive). It's ignored if the `RUST_LOG` environment variable
 is set — `RUST_LOG` always takes precedence and supports tracing's full
 per-module directive syntax (e.g. `hetzner_storage_box_to_mqtt=debug`).
+
+`run_times` is a list of daily clock times, each in 24-hour `HH:MM`
+format (e.g. `"03:00"`, `"15:30"`), interpreted in the system's local
+timezone (not UTC). The first cycle runs immediately on startup; after
+that, a cycle runs at each listed time, every day. Each entry must be a
+valid `HH:MM` time. A cycle's failure is logged but doesn't stop the
+process — the next scheduled cycle still runs. If empty or omitted, the
+app runs only the one startup cycle and exits, instead of staying
+resident.
 
 ## `[hetzner]`
 
