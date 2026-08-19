@@ -25,6 +25,7 @@ resident.
   - [Quick start](#quick-start)
   - [Detailed setup](#detailed-setup)
 - [Configuring the app](docs/configuration.md)
+- [Running with Docker Compose](#running-with-docker-compose)
 - [Common tasks](#common-tasks)
 - [Using the Claude Code sandbox](#using-the-claude-code-sandbox)
   - [VM lifecycle](#vm-lifecycle)
@@ -95,6 +96,39 @@ mise run mcp:config     # render .mcp.json from .mcp.template.json
 See [`docs/configuration.md`](docs/configuration.md) for the config file
 location and precedence, the full `[general]`/`[hetzner]`/`[mqtt]`/
 `[[storage_box]]` schema, environment variable overrides, and CLI flags.
+
+## Running with Docker Compose
+
+Images are published to GHCR on release (see `.github/workflows/publish.yml`).
+Pull the published image and run it with a bind-mounted config file rather
+than building locally — this repo only builds the image from the
+`Dockerfile` directly (see `mise run image-build` in [Common tasks](#common-tasks)),
+not through Compose.
+
+```yaml
+services:
+  hetzner-storage-box-to-mqtt:
+    image: ghcr.io/pyanezs/hetzner-storage-box-to-mqtt:latest
+    restart: unless-stopped
+    volumes:
+      - ./config.toml:/app/config.toml:ro
+    environment:
+      HETZNER_API_TOKEN: ${HETZNER_API_TOKEN}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+```
+
+Then:
+
+```
+cp config.example.toml config.toml   # fill in the [hetzner]/[mqtt]/[[storage_box]] sections
+docker compose up -d
+```
+
+Secrets can live directly in `config.toml`, or be supplied via
+`HETZNER_API_TOKEN`/`MQTT_PASSWORD` as shown above — e.g. via a `.env` file
+next to `compose.yaml`, which Compose loads automatically and which is
+already gitignored. Env vars take precedence over the config file.
+See [Configuring the app](docs/configuration.md) for the full config schema.
 
 ## Common tasks
 
