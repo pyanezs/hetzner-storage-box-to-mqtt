@@ -3,23 +3,14 @@
 Pulls Storage Box information from the Hetzner Cloud API
 and publishes it to MQTT, with Home Assistant MQTT Discovery support.
 
-```mermaid
-flowchart LR
-    Hetzner["Hetzner API"]
-    App["App"]
-    Broker["Broker (Mosquitto)"]
-    HA["Home Assistant"]
-
-    Hetzner -- "HTTP GET" --> App
-    App -- "MQTT publish" --> Broker
-    Broker --> HA
+```
++-------------+               +-----+                   +--------------------+       +----------------+
+| Hetzner API |-- HTTP GET -->| App |-- MQTT publish -->| Broker (Mosquitto) |------>| Home Assistant |
++-------------+               +-----+                   +--------------------+       +----------------+
 ```
 
 The app is one-shot: it fetches configured storage boxes once, publishes once, and exits.
 It's meant to be triggered externally (cron, systemd timer), not run as a daemon.
-
-See `instructions.md` for the original requirements
-and `src/hetzner.rs`/`src/fields.rs` for the data model and selectable fields.
 
 ## Requirements
 
@@ -91,7 +82,7 @@ and a narrow, explicit egress allowlist.
 ### VM lifecycle
 
 ```
-mise run vm-up       # build the image (if needed), create and start the VM, open a shell in it
+mise run vm-up        # build the image (if needed), create and start the VM, open a shell in it
 mise run vm-shell     # open a shell in an already-running VM (starts it first if needed)
 mise run vm-stop      # stop the VM without deleting it
 mise run vm-destroy   # stop and delete the VM
@@ -100,6 +91,11 @@ mise run vm-recreate  # destroy and recreate the VM from scratch
 
 Inside the VM, the project directory is mounted live at `/workspace` in both directions,
 and `claude` is preinstalled — run it there to work on this project inside the sandbox.
+A `claude-yolo` alias is also predefined in the VM's `~/.bashrc`,
+running `claude --dangerously-skip-permissions`.
+Skipping permission prompts is reasonable here since the VM is already sandboxed from the host.
+The alias is baked into the image, so an existing VM needs `mise run docker-rebuild`
+(or `mise run vm-recreate`) before it picks up.
 
 ### Giving the sandboxed Claude access to `mise` tasks
 
@@ -108,6 +104,38 @@ The sandbox's network is locked down to the hosts listed in `Smolfile`'s `[netwo
 installation or general network — including crates.io, which `cargo build`/`test` need.
 To work around this, `mise mcp` (mise's own MCP server) runs on the **host**
 and is exposed to the sandboxed Claude as an MCP tool server:
+
+```
++-----------------------------------------------------------------------+
+|                           VM ($SMOL_MACHINE)                          |
++-----------------------------------------------------------------------+
+| claude / claude-yolo MCP client                                       |
+|                      .mcp.json -> host.smolvm.internal:$MCP_PORT/sse  |
+| requests:            cargo-build, cargo-test, lint, prek-run          |
++-----------------------------------------------------------------------+
+                                   |
+                   egress allowed only to:
+                   Smolfile [network] allow_hosts
+                   + host.smolvm.internal (narrow CIDR)
+                   no crates.io / general internet
+                                   |
+== network boundary (smolvm firewall) ================================
+                                   |
+                                   v
++-----------------------------------------------------------------------+
+|                                  HOST                                 |
++-----------------------------------------------------------------------+
+| mise run mcp-proxy   SSE proxy on 0.0.0.0:$MCP_PORT, wraps `mise mcp` |
+| mise mcp (server)    receives the request and RUNS the task here:     |
+|                      cargo build / test / fmt / clippy, prek run      |
+|                      using the host's rust toolchain + full network   |
++-----------------------------------------------------------------------+
+```
+
+The VM only sends the MCP request over that SSE connection —
+`mise mcp` on the host is what actually executes `cargo build`/`test`/etc.,
+using the host's toolchain and network access,
+since the VM's egress is firewalled off from crates.io.
 
 1. On the host, run `mise run mcp-proxy`.
    This starts `mise mcp` behind an SSE proxy on `0.0.0.0:$MCP_PORT` (default `8765`),

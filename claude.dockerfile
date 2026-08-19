@@ -40,4 +40,6 @@ RUN git config --global --add safe.directory /workspace \
  && mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh" \
  && ssh-keyscan github.com >> "$HOME/.ssh/known_hosts"
 
+RUN echo "alias claude-yolo='claude --dangerously-skip-permissions'" >> "$HOME/.bashrc"
+
 WORKDIR /workspace
