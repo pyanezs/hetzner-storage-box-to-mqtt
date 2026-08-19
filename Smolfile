@@ -1,0 +1,34 @@
+# ── Base ───────────────────────────────────────────────
+image  = "./tmp/claude-box.tar"
+net    = true
+cpus   = 4                    # default is 4
+memory = 8192                 # MiB — default is 8 GiB
+
+# ── Secrets: API-key auth (optional) ───────────────────
+# Reads ANTHROPIC_API_KEY from your HOST shell at launch and injects it
+# into the guest env. Resolved fresh each run; never written to disk or
+# the VM record. Delete this block if you use the browser OAuth login.
+# [secrets]
+# ANTHROPIC_API_KEY = { from_env = "ANTHROPIC_API_KEY" }
+
+# ── Egress allowlist ───────────────────────────────────
+[network]
+allow_hosts = [
+  "api.anthropic.com",         # inference + auth + telemetry
+  "claude.ai",                 # claude.ai account authentication
+  "claude.com",                # sign-in redirect page
+  "platform.claude.com",       # OAuth token exchange/refresh/revocation — required for BOTH auth methods
+  "downloads.claude.ai",       # native installer + auto-updater + update checks
+  "console.anthropic.com",     # only if you use API-key auth
+  "registry.npmjs.org",        # your projects' npm installs
+  "github.com",                # git over SSH
+]
+
+# ── Dev workspace ──────────────────────────────────────
+[dev]
+volumes = ["./:/workspace"]  # host project mounted live, both ways
+workdir = "/workspace"
+
+# ── SSH agent forwarding for git ───────────────────────
+[auth]
+ssh_agent = true

@@ -1,0 +1,138 @@
+[tools]
+python = "3.14"
+prek = "0.4.5"
+typos = "1.47.2"
+jq = "latest"
+rust = "latest"
+
+[env]
+PROJECT_ROOT = "{{ config_root }}"
+PROJECT_NAME = "{{ config_root | basename }}"
+SMOL_MACHINE = "{{ env.PROJECT_NAME }}-cc"
+
+#########################################################################
+# Docker image tasks
+[tasks.docker-build]
+description = "Build the claude-box Docker image and save it to tmp/claude-box.tar (skips if the tarball already exists)"
+run = '''
+mkdir -p "$PROJECT_ROOT/tmp"
+if [ ! -f "$PROJECT_ROOT/tmp/claude-box.tar" ]; then
+  docker build \
+    -f claude.dockerfile \
+    --build-arg UID=$(id -u) \
+    --build-arg GID=$(id -g) \
+    --build-arg GIT_USER_NAME="$(git config user.name || true)" \
+    --build-arg GIT_USER_EMAIL="$(git config user.email || true)" \
+    -t $PROJECT_NAME-claude-box "$PROJECT_ROOT"
+  docker save $PROJECT_NAME-claude-box -o "$PROJECT_ROOT/tmp/claude-box.tar"
+fi
+'''
+
+[tasks.docker-clean]
+description = "Remove the claude-box Docker image and delete tmp/claude-box.tar"
+confirm = "This will permanently delete the image $PROJECT_NAME. Continue?"
+run = '''
+docker rmi $PROJECT_NAME-claude-box 2>/dev/null || true
+rm -f "$PROJECT_ROOT/tmp/claude-box.tar"
+'''
+
+[tasks.docker-rebuild]
+description = "Clean and rebuild the claude-box image from scratch"
+run = '''
+mise run docker-clean
+mise run docker-build
+'''
+
+#########################################################################
+# smolvm tasks
+[tasks._vm-exists]
+description = "Internal: exit 0 if the smolvm machine $SMOL_MACHINE exists"
+hide = true
+quiet = true
+run = '''
+smolvm machine ls --json | jq -e --arg n "$SMOL_MACHINE" '[.. | objects | select(.name? == $n)] | length > 0' >/dev/null
+'''
+
+[tasks._vm-running]
+description = "Internal: exit 0 if the smolvm machine $SMOL_MACHINE is running"
+hide = true
+quiet = true
+run = '''
+smolvm machine ls --json | jq -e --arg n "$SMOL_MACHINE" '[.. | objects | select(.name? == $n) | select(.state? == "running" or .status? == "running")] | length > 0' >/dev/null
+'''
+
+[tasks.vm-create]
+description = "Create the smolvm machine ($SMOL_MACHINE) from the built image if it doesn't already exist"
+depends = ['docker-build']
+run = '''
+if mise run _vm-exists; then
+  echo "Machine $SMOL_MACHINE already exists — skipping create."
+else
+  smolvm machine create --name "$SMOL_MACHINE" --image "$PROJECT_ROOT/tmp/claude-box.tar" -s "$PROJECT_ROOT/Smolfile"
+fi
+'''
+
+
+[tasks.vm-start]
+description = "Ensure the smolvm machine ($SMOL_MACHINE) exists and is running"
+run = '''
+if ! mise run _vm-exists; then
+  mise run vm-create
+fi
+if mise run _vm-running; then
+  echo "Machine $SMOL_MACHINE is already running — skipping start."
+else
+  smolvm machine start --name "$SMOL_MACHINE"
+  for i in $(seq 1 10); do
+    mise run _vm-running && break
+    sleep 0.3
+  done
+  if ! mise run _vm-running; then
+    echo "Failed to start $SMOL_MACHINE — check 'smolvm machine status --name $SMOL_MACHINE'." >&2
+    exit 1
+  fi
+fi
+'''
+
+[tasks.vm-stop]
+description = "Stop the smolvm machine ($SMOL_MACHINE) if it's running"
+run = '''
+if ! mise run _vm-exists; then
+  echo "Machine $SMOL_MACHINE does not exist — nothing to stop."
+elif mise run _vm-running; then
+  smolvm machine stop --name "$SMOL_MACHINE"
+else
+  echo "Machine $SMOL_MACHINE is not running — skipping stop."
+fi
+'''
+
+[tasks.vm-destroy]
+description = "Stop and delete the smolvm machine ($SMOL_MACHINE)"
+confirm = "This will permanently delete the machine $SMOL_MACHINE. Continue?"
+run = '''
+if ! mise run _vm-exists; then
+  echo "Machine $SMOL_MACHINE does not exist — nothing to delete."
+else
+  smolvm machine delete --name "$SMOL_MACHINE" --force
+fi
+'''
+
+[tasks.vm-shell]
+description = "Open an interactive bash shell inside the smolvm machine ($SMOL_MACHINE)"
+raw = true
+run = '''
+mise run vm-start
+smolvm machine exec --name "$SMOL_MACHINE" -it -- /bin/bash
+'''
+
+[tasks.vm-up]
+description = "Create, start, and shell into the smolvm machine ($SMOL_MACHINE)"
+raw = true
+run = 'mise run vm-shell'
+
+[tasks.vm-recreate]
+description = "Rebuild the image and recreate the machine from scratch"
+run = '''
+mise run docker-rebuild
+mise run vm-create
+'''
