@@ -33,7 +33,7 @@ description = "Run the test suite"
 run = 'cargo test'
 
 [tasks.run]
-description = "Run the app (pass args after --, e.g. mise run run -- --dump-raw 42)"
+description = "Run the app (pass args after --, e.g. mise run run -- --config /path/to/config.toml)"
 run = 'cargo run --'
 
 #########################################################################

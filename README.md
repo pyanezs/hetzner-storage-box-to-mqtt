@@ -98,18 +98,13 @@ Run `mise tasks` for the full list. The ones you'll use day to day:
 |---|---|
 | `mise run cargo-build` | `cargo build` |
 | `mise run cargo-test` | `cargo test` (unit tests + `wiremock`-based Hetzner API tests) |
-| `mise run run -- <args>` | `cargo run --`, e.g. `mise run run -- --dump-raw 42` |
+| `mise run run -- <args>` | `cargo run --`, e.g. `mise run run -- --config /path/to/config.toml` |
 | `mise run lint` | `cargo fmt --check` then `cargo clippy` |
 | `mise run cargo-fmt` | `cargo fmt` (writes changes) |
 | `mise run prek-run` | Runs the pre-commit-style hooks in `prek.toml` against staged files |
 
 `prek-run` must pass before creating a commit — this is enforced by convention (see `CLAUDE.md`),
 not by a git hook, so run it yourself before committing.
-
-`--dump-raw <id>` fetches and prints the raw JSON response for one storage box,
-bypassing the app's typed struct entirely.
-Useful for finding a box's numeric id and sanity-checking the API response
-before adding a `[[storage_box]]` entry to `config.toml`.
 
 ## Using the Claude Code sandbox
 

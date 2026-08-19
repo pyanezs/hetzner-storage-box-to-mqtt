@@ -198,22 +198,6 @@ impl HetznerClient {
         Ok(body.storage_box)
     }
 
-    /// Fetches the raw response body for a box, bypassing `StorageBox` deserialization
-    /// entirely. Used by `--dump-raw` to inspect real API responses independent of
-    /// whether the modeled struct above still matches reality.
-    pub async fn fetch_raw(&self, id: u64) -> Result<String, HetznerError> {
-        let response = self.get(id).await?;
-        let status = response.status();
-        if !status.is_success() {
-            return Err(Self::parse_error(status, response).await);
-        }
-        let text = response.text().await.map_err(HetznerError::Transport)?;
-        match serde_json::from_str::<serde_json::Value>(&text) {
-            Ok(value) => Ok(serde_json::to_string_pretty(&value).unwrap_or(text)),
-            Err(_) => Ok(text),
-        }
-    }
-
     async fn parse_error(status: reqwest::StatusCode, response: reqwest::Response) -> HetznerError {
         let status_code = status.as_u16();
         match response.json::<HetznerErrorBody>().await {

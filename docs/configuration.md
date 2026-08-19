@@ -74,8 +74,7 @@ or `publish = false`, is never fetched or published.
 | `alias` | string | no | Hetzner-reported name |
 
 - `id` is the numeric Hetzner Cloud resource id (not the name) — find it via
-  the Hetzner Cloud Console, or run `mise run run -- --dump-raw <id>` once
-  you know it.
+  the Hetzner Cloud Console.
 - `alias` overrides the Home Assistant device display name for this box.
   When omitted, the Hetzner API-reported name is used instead.
   Must not be an empty string if set.
@@ -104,7 +103,6 @@ or `publish = false`, is never fetched or published.
 | Flag | Effect |
 |---|---|
 | `--config <path>` | overrides the config file location |
-| `--dump-raw <id>` | prints the raw JSON response for one storage box and exits, bypassing config-based publishing |
 
 Flags are parsed manually (no `clap`) — an unrecognized flag is silently
 ignored, and there's no `--help`/`--version`.

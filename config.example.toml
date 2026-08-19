@@ -33,7 +33,7 @@ tls = false
 
 # One [[storage_box]] block per Hetzner Storage Box you want to track.
 # `id` is the numeric Hetzner Cloud resource id (not the name) — find it via the
-# Hetzner Cloud Console, or run `cargo run -- --dump-raw <id>` once you know it.
+# Hetzner Cloud Console.
 # A box with no matching [[storage_box]] entry, or `publish = false`, is never
 # fetched or published.
 [[storage_box]]
