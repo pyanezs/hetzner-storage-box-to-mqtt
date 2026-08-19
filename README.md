@@ -1,0 +1,137 @@
+# hetzner-storage-box-to-mqtt
+
+Pulls Storage Box information from the Hetzner Cloud API
+and publishes it to MQTT, with Home Assistant MQTT Discovery support.
+
+```mermaid
+flowchart LR
+    Hetzner["Hetzner API"]
+    App["App"]
+    Broker["Broker (Mosquitto)"]
+    HA["Home Assistant"]
+
+    Hetzner -- "HTTP GET" --> App
+    App -- "MQTT publish" --> Broker
+    Broker --> HA
+```
+
+The app is one-shot: it fetches configured storage boxes once, publishes once, and exits.
+It's meant to be triggered externally (cron, systemd timer), not run as a daemon.
+
+See `instructions.md` for the original requirements
+and `src/hetzner.rs`/`src/fields.rs` for the data model and selectable fields.
+
+## Requirements
+
+- [mise](https://mise.jdx.dev/) — manages the Rust toolchain and every task in this repo.
+  Everything below is run through it; you don't need `rustup`/`cargo` installed separately.
+
+## Dev environment setup
+
+1. Install `mise` (see link above), then from the repo root:
+
+   ```
+   mise trust
+   mise install
+   ```
+
+   This installs the pinned Rust toolchain (with `clippy`/`rustfmt` components),
+   `rust-analyzer`, `prek`, `typos`, and the other tools listed in `mise.toml`.
+
+2. Copy the example config and fill in real values:
+
+   ```
+   cp config.example.toml config.toml
+   ```
+
+   `config.toml` is gitignored — it holds your Hetzner API token and MQTT credentials,
+   and is never committed.
+   Both secrets can also be supplied via environment variables instead
+   (`HETZNER_API_TOKEN`, `MQTT_PASSWORD`), which take precedence over the file if set.
+   See the comments in `config.example.toml` for the full schema,
+   and `src/fields.rs`'s `KNOWN_FIELDS` for the list of selectable field paths.
+
+3. Verify the setup:
+
+   ```
+   mise run cargo-build
+   mise run cargo-test
+   mise run lint
+   ```
+
+## Common tasks
+
+Run `mise tasks` for the full list. The ones you'll use day to day:
+
+| Task | What it does |
+|---|---|
+| `mise run cargo-build` | `cargo build` |
+| `mise run cargo-test` | `cargo test` (unit tests + `wiremock`-based Hetzner API tests) |
+| `mise run run -- <args>` | `cargo run --`, e.g. `mise run run -- --dump-raw 42` |
+| `mise run lint` | `cargo fmt --check` then `cargo clippy` |
+| `mise run cargo-fmt` | `cargo fmt` (writes changes) |
+| `mise run prek-run` | Runs the pre-commit-style hooks in `prek.toml` against staged files |
+
+`prek-run` must pass before creating a commit — this is enforced by convention (see `CLAUDE.md`),
+not by a git hook, so run it yourself before committing.
+
+`--dump-raw <id>` fetches and prints the raw JSON response for one storage box,
+bypassing the app's typed struct entirely.
+Useful for finding a box's numeric id and sanity-checking the API response
+before adding a `[[storage_box]]` entry to `config.toml`.
+
+## Using the Claude Code sandbox
+
+This repo includes a self-contained sandbox for running Claude Code
+against this project without giving it direct access to your host machine:
+a Docker image (`claude.dockerfile`) run inside a [smolvm](https://github.com/smol-ai/smolvm)
+micro-VM (configured by `Smolfile`), with your project directory mounted in
+and a narrow, explicit egress allowlist.
+
+### VM lifecycle
+
+```
+mise run vm-up       # build the image (if needed), create and start the VM, open a shell in it
+mise run vm-shell     # open a shell in an already-running VM (starts it first if needed)
+mise run vm-stop      # stop the VM without deleting it
+mise run vm-destroy   # stop and delete the VM
+mise run vm-recreate  # destroy and recreate the VM from scratch
+```
+
+Inside the VM, the project directory is mounted live at `/workspace` in both directions,
+and `claude` is preinstalled — run it there to work on this project inside the sandbox.
+
+### Giving the sandboxed Claude access to `mise` tasks
+
+The sandbox's network is locked down to the hosts listed in `Smolfile`'s `[network] allow_hosts`
+(plus a narrow CIDR for reaching the host). It has no direct access to your host's `mise`/`cargo`
+installation or general network — including crates.io, which `cargo build`/`test` need.
+To work around this, `mise mcp` (mise's own MCP server) runs on the **host**
+and is exposed to the sandboxed Claude as an MCP tool server:
+
+1. On the host, run `mise run mcp-proxy`.
+   This starts `mise mcp` behind an SSE proxy on `0.0.0.0:$MCP_PORT` (default `8765`),
+   reachable from inside the VM via `host.smolvm.internal`.
+2. Create `mise.local.toml` (gitignored, not tracked) with the URL the VM should use to reach it:
+
+   ```toml
+   [env]
+   MCP_MISE_URL = "http://host.smolvm.internal:8765/sse"
+   ```
+
+3. Run `mise run mcp-config` to render `.mcp.json` (gitignored) from `.mcp.template.json`,
+   substituting that URL in.
+
+Once connected, tasks like `cargo-build`/`cargo-test`/`prek-run` run through the `mise` MCP tools
+from inside the sandbox, with real network access on the host side —
+this is how `cargo build`/`test`/`lint` were actually run and verified during development,
+since the sandbox itself can't reach crates.io directly.
+
+**Known issue**: Claude Code's MCP client always probes remote HTTP/SSE servers for OAuth support.
+`mcp-proxy` doesn't implement any OAuth endpoints, so it 404s those probes —
+and depending on the Claude Code version, the client can fail to handle that gracefully,
+breaking the whole MCP session (every task call then fails with a generic
+`MCP error -32602: Invalid request parameters`, not just the auth step).
+If this happens, running `/mcp` and reconnecting has been enough to recover in practice.
+See [anthropics/claude-code#46640](https://github.com/anthropics/claude-code/issues/46640)
+for the upstream tracking issue.

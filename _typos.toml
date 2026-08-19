@@ -1,0 +1,3 @@
+[default.extend-words]
+# The MQTT broker, not a typo for "Mosquito".
+Mosquitto = "Mosquitto"
