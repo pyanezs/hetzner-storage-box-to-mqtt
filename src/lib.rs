@@ -43,6 +43,8 @@ pub async fn run(config: &Config) -> Result<()> {
             }
         };
 
+        tracing::info!(box_id = box_data.id, box_data = ?box_data, "Fetched storage box data");
+
         let device_name = sb.alias.as_deref().unwrap_or(&box_data.name);
 
         for field in &sb.fields {
