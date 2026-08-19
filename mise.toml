@@ -27,6 +27,21 @@ echo "Hello from $HOSTNAME"
 description = "Run prek hooks against staged files"
 run = 'prek run'
 
+[tasks.lint-cargo-fmt]
+description = "Check code formatting with cargo fmt"
+run = 'cargo fmt --check'
+
+[tasks.lint-clippy]
+description = "Lint code with cargo clippy"
+run = 'cargo clippy'
+
+[tasks.lint]
+description = "Run all lints: cargo fmt then cargo clippy"
+run = '''
+mise run lint-cargo-fmt
+mise run lint-clippy
+'''
+
 #########################################################################
 # MCP
 [tasks.mcp-config]
