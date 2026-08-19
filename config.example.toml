@@ -1,0 +1,49 @@
+# Copy this file to config.toml and fill in real values.
+# config.toml is gitignored — it holds secrets and is never committed.
+
+[general]
+# Whether to retry a failed Hetzner API call (5xx / connection errors only, not 4xx)
+# or a failed MQTT publish, using a fixed backoff: 2, 4, 8, 16, 32, 64 seconds, then stop.
+retry_enabled = true
+
+[hetzner]
+# Can also be set via the HETZNER_API_TOKEN environment variable, which takes
+# precedence over this file if set.
+api_token = "CHANGE_ME"
+# Optional — defaults to this value if omitted.
+api_base_url = "https://api.hetzner.cloud/v1"
+
+[mqtt]
+host = "mqtt.example.local"
+port = 1883
+username = "mqtt-user"
+# Can also be set via the MQTT_PASSWORD environment variable, which takes
+# precedence over this file if set.
+password = "CHANGE_ME"
+client_id = "hetzner-storage-box-to-mqtt"
+# Prefix used for state topics: <base_topic>/<box id>/<field>/state
+base_topic = "hetzner_storage_box"
+# Prefix Home Assistant listens on for MQTT discovery.
+discovery_prefix = "homeassistant"
+tls = false
+
+# One [[storage_box]] block per Hetzner Storage Box you want to track.
+# `id` is the numeric Hetzner Cloud resource id (not the name) — find it via the
+# Hetzner Cloud Console, or run `cargo run -- --dump-raw <id>` once you know it.
+# A box with no matching [[storage_box]] entry, or `publish = false`, is never
+# fetched or published.
+[[storage_box]]
+id = 12345678
+publish = true
+# See src/fields.rs KNOWN_FIELDS for the full list of selectable field paths.
+fields = ["name", "status", "stats.size", "stats.size_data"]
+
+# Optional, per-field Home Assistant metadata. Keyed by the exact same dotted-path
+# string used in `fields` above. Any field left out here still publishes fine —
+# it just falls back to the dotted path as its entity name, with no unit/device class.
+[storage_box.field_meta]
+"stats.size" = { friendly_name = "Used Size", unit_of_measurement = "B", device_class = "data_size" }
+
+[[storage_box]]
+id = 87654321
+publish = false
