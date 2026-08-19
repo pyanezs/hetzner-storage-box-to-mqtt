@@ -22,6 +22,7 @@ pub async fn run(config: &Config) -> Result<()> {
         config.hetzner.api_token.clone(),
     );
     let retry_enabled = config.general.retry_enabled;
+    let last_updated = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
 
     let mut messages = Vec::new();
     let mut any_box_failed = false;
@@ -47,8 +48,14 @@ pub async fn run(config: &Config) -> Result<()> {
 
         let device_name = sb.alias.as_deref().unwrap_or(&box_data.name);
 
-        for field in &sb.fields {
-            let Some(value) = fields::extract_field(&box_data, field) else {
+        let fields_to_publish = sb
+            .fields
+            .iter()
+            .map(String::as_str)
+            .chain(std::iter::once("last_updated"));
+
+        for field in fields_to_publish {
+            let Some(value) = fields::extract_field(&box_data, field, &last_updated) else {
                 tracing::warn!(
                     box_id = sb.id,
                     field = %field,
@@ -60,7 +67,7 @@ pub async fn run(config: &Config) -> Result<()> {
             let meta = sb.field_meta.get(field);
             messages.push(mqtt::Message {
                 topic: discovery::state_topic(&config.mqtt, sb.id, field),
-                payload: value.to_string(),
+                payload: fields::to_payload(&value),
                 retain: true,
             });
             messages.push(mqtt::Message {

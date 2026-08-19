@@ -47,9 +47,16 @@ fields = ["name", "status", "stats.size", "stats.size_data"]
 
 # Optional, per-field Home Assistant metadata. Keyed by the exact same dotted-path
 # string used in `fields` above. Any field left out here still publishes fine —
-# it just falls back to the dotted path as its entity name, with no unit/device class.
+# it just falls back to a title-cased version of its field path as its entity name
+# (e.g. "stats.size" -> "Stats Size"), with no unit/device class.
+# `last_updated` doesn't need to be listed in `fields` — it's always published
+# automatically (an RFC3339 timestamp captured right before publishing), but can
+# still be customized here like any other field.
+# `stats.size`/`stats.size_data`/`stats.size_snapshots` are published in MiB (not
+# the raw bytes the Hetzner API reports) and default to unit_of_measurement = "MiB"
+# without needing an entry here.
 [storage_box.field_meta]
-"stats.size" = { friendly_name = "Used Size", unit_of_measurement = "B", device_class = "data_size" }
+"stats.size" = { friendly_name = "Used Size", device_class = "data_size" }
 
 [[storage_box]]
 id = 87654321

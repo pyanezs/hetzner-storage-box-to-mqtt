@@ -57,6 +57,13 @@ pub async fn publish_all(cfg: &MqttConfig, messages: &[Message]) -> Result<(), M
     let (client, mut eventloop) = AsyncClient::new(options, 10);
 
     for msg in messages {
+        tracing::info!(
+            topic = %msg.topic,
+            payload = %msg.payload,
+            retain = msg.retain,
+            "Publishing MQTT message"
+        );
+
         client
             .publish(
                 &msg.topic,

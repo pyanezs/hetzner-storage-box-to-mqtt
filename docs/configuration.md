@@ -87,8 +87,21 @@ or `publish = false`, is never fetched or published.
 - `[storage_box.field_meta]` is optional, per-field Home Assistant metadata
   (`friendly_name`, `unit_of_measurement`, `device_class`), keyed by the
   same dotted-path string used in `fields`. A field left out here still
-  publishes fine — it falls back to the dotted path as its entity name,
-  with no unit or device class. Keys must also exist in `KNOWN_FIELDS`.
+  publishes fine — it falls back to a title-cased version of its field
+  path as its entity name (e.g. `stats.size` -> `Stats Size`), with no
+  unit or device class. Keys must also exist in `KNOWN_FIELDS`.
+- `last_updated` is always published for every published box, regardless
+  of what's listed in `fields` — an RFC3339 UTC timestamp
+  (e.g. `2026-08-19T12:34:56Z`) captured once per run, right before
+  publishing to MQTT. It defaults to Home Assistant's `timestamp` device
+  class, and can still be given a `friendly_name` or overridden
+  `device_class` via `field_meta` like any other field.
+- `stats.size`, `stats.size_data`, and `stats.size_snapshots` are
+  published in MiB, converted from the raw bytes the Hetzner API reports
+  (rounded to 2 decimal places). They default to
+  `unit_of_measurement = "MiB"` without needing a `field_meta` entry —
+  set one explicitly to override it (e.g. back to `"B"`, or up to
+  `"GiB"`).
 
 ## Environment variable overrides
 

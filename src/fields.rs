@@ -31,14 +31,27 @@ pub const KNOWN_FIELDS: &[&str] = &[
     "access_settings.zfs_enabled",
     "protection.delete",
     "labels",
+    "last_updated",
 ];
+
+const BYTES_PER_MIB: f64 = 1_048_576.0;
+
+/// Converts a byte count to MiB, rounded to 2 decimal places — the Hetzner API
+/// reports storage sizes in bytes, but a home dashboard is more readable in MiB.
+fn bytes_to_mib(bytes: u64) -> f64 {
+    ((bytes as f64 / BYTES_PER_MIB) * 100.0).round() / 100.0
+}
 
 /// Extracts a known field's value from a storage box.
 /// Returns `None` both for an unknown key and for a field whose value is currently
 /// absent (e.g. `username` while the box is still `initializing`) — callers treat
 /// both cases the same way: skip publishing it this run.
-pub fn extract_field(b: &StorageBox, key: &str) -> Option<Value> {
+///
+/// `last_updated` isn't part of `StorageBox` — it's an RFC3339 timestamp the caller
+/// captures once per run, right before publishing.
+pub fn extract_field(b: &StorageBox, key: &str, last_updated: &str) -> Option<Value> {
     match key {
+        "last_updated" => Some(json!(last_updated)),
         "id" => Some(json!(b.id)),
         "name" => Some(json!(b.name)),
         "status" => serde_json::to_value(&b.status).ok(),
@@ -46,9 +59,9 @@ pub fn extract_field(b: &StorageBox, key: &str) -> Option<Value> {
         "server" => b.server.clone().map(Value::from),
         "system" => b.system.clone().map(Value::from),
         "created" => Some(json!(b.created)),
-        "stats.size" => Some(json!(b.stats.size)),
-        "stats.size_data" => Some(json!(b.stats.size_data)),
-        "stats.size_snapshots" => Some(json!(b.stats.size_snapshots)),
+        "stats.size" => Some(json!(bytes_to_mib(b.stats.size))),
+        "stats.size_data" => Some(json!(bytes_to_mib(b.stats.size_data))),
+        "stats.size_snapshots" => Some(json!(bytes_to_mib(b.stats.size_snapshots))),
         "storage_box_type.name" => Some(json!(b.storage_box_type.name)),
         "storage_box_type.description" => Some(json!(b.storage_box_type.description)),
         "storage_box_type.size" => Some(json!(b.storage_box_type.size)),
@@ -66,6 +79,18 @@ pub fn extract_field(b: &StorageBox, key: &str) -> Option<Value> {
         "protection.delete" => Some(json!(b.protection.delete)),
         "labels" => Some(json!(b.labels)),
         _ => None,
+    }
+}
+
+/// Converts an extracted field's JSON value into the raw string published as its MQTT
+/// state payload. JSON strings are unwrapped rather than serialized with surrounding
+/// quotes — Home Assistant's typed device classes (e.g. `timestamp`) parse the state
+/// payload directly and treat a quoted string as invalid, showing the entity as
+/// "Unknown" instead of the real value.
+pub fn to_payload(value: &Value) -> String {
+    match value {
+        Value::String(s) => s.clone(),
+        other => other.to_string(),
     }
 }
 
@@ -116,21 +141,24 @@ mod tests {
             username: Some("u45321".to_string()),
             server: Some("u1337.your-storagebox.de".to_string()),
             system: Some("FSN1-BX355".to_string()),
+            // 100 MiB, 80 MiB, 20 MiB
             stats: Stats {
-                size: 100,
-                size_data: 80,
-                size_snapshots: 20,
+                size: 104_857_600,
+                size_data: 83_886_080,
+                size_snapshots: 20_971_520,
             },
             created: "2016-01-30T23:50:00Z".to_string(),
         }
     }
+
+    const LAST_UPDATED: &str = "2026-08-19T12:00:00Z";
 
     #[test]
     fn extracts_every_known_field() {
         let b = fixture();
         for key in KNOWN_FIELDS {
             assert!(
-                extract_field(&b, key).is_some(),
+                extract_field(&b, key, LAST_UPDATED).is_some(),
                 "expected a value for known field '{key}'"
             );
         }
@@ -139,23 +167,52 @@ mod tests {
     #[test]
     fn nested_field_extracts_correct_value() {
         let b = fixture();
-        assert_eq!(extract_field(&b, "stats.size"), Some(json!(100)));
         assert_eq!(
-            extract_field(&b, "access_settings.samba_enabled"),
+            extract_field(&b, "stats.size", LAST_UPDATED),
+            Some(json!(100.0))
+        );
+        assert_eq!(
+            extract_field(&b, "access_settings.samba_enabled", LAST_UPDATED),
             Some(json!(true))
+        );
+    }
+
+    #[test]
+    fn last_updated_extracts_given_timestamp() {
+        let b = fixture();
+        assert_eq!(
+            extract_field(&b, "last_updated", LAST_UPDATED),
+            Some(json!(LAST_UPDATED))
         );
     }
 
     #[test]
     fn unknown_key_returns_none() {
         let b = fixture();
-        assert_eq!(extract_field(&b, "does.not.exist"), None);
+        assert_eq!(extract_field(&b, "does.not.exist", LAST_UPDATED), None);
     }
 
     #[test]
     fn null_field_returns_none() {
         let mut b = fixture();
         b.username = None;
-        assert_eq!(extract_field(&b, "username"), None);
+        assert_eq!(extract_field(&b, "username", LAST_UPDATED), None);
+    }
+
+    #[test]
+    fn bytes_to_mib_rounds_to_two_decimal_places() {
+        assert_eq!(bytes_to_mib(104_857_600), 100.0);
+        assert_eq!(bytes_to_mib(1_500_000), 1.43);
+    }
+
+    #[test]
+    fn to_payload_unwraps_string_without_json_quotes() {
+        assert_eq!(to_payload(&json!(LAST_UPDATED)), LAST_UPDATED);
+    }
+
+    #[test]
+    fn to_payload_leaves_non_string_values_as_is() {
+        assert_eq!(to_payload(&json!(100)), "100");
+        assert_eq!(to_payload(&json!(true)), "true");
     }
 }

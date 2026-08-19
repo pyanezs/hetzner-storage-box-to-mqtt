@@ -5,6 +5,23 @@ fn sanitize(field: &str) -> String {
     field.replace('.', "_")
 }
 
+/// Turns a dotted/underscored field path into a human-readable default entity name,
+/// e.g. `last_updated` -> `Last Updated`, `stats.size` -> `Stats Size`. Used when
+/// `field_meta.friendly_name` isn't set for a field.
+fn default_friendly_name(field: &str) -> String {
+    field
+        .split(['.', '_'])
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 pub fn unique_id(box_id: u64, field: &str) -> String {
     format!("hetzner_storage_box_{box_id}_{}", sanitize(field))
 }
@@ -34,7 +51,7 @@ pub fn discovery_payload(
 ) -> Value {
     let name = meta
         .and_then(|m| m.friendly_name.clone())
-        .unwrap_or_else(|| field.to_string());
+        .unwrap_or_else(|| default_friendly_name(field));
 
     let mut payload = json!({
         "name": name,
@@ -55,6 +72,15 @@ pub fn discovery_payload(
         if let Some(device_class) = &meta.device_class {
             payload["device_class"] = json!(device_class);
         }
+    }
+
+    if field == "last_updated" && payload.get("device_class").is_none() {
+        payload["device_class"] = json!("timestamp");
+    }
+
+    const MIB_FIELDS: &[&str] = &["stats.size", "stats.size_data", "stats.size_snapshots"];
+    if MIB_FIELDS.contains(&field) && payload.get("unit_of_measurement").is_none() {
+        payload["unit_of_measurement"] = json!("MiB");
     }
 
     payload
@@ -98,14 +124,14 @@ mod tests {
     #[test]
     fn payload_without_meta_omits_optional_keys() {
         let mqtt = mqtt_config();
-        let payload = discovery_payload(&mqtt, 42, "my-resource", "stats.size", None);
+        let payload = discovery_payload(&mqtt, 42, "my-resource", "status", None);
 
         assert_eq!(
             payload,
             json!({
-                "name": "stats.size",
-                "state_topic": "hetzner_storage_box/42/stats_size/state",
-                "unique_id": "hetzner_storage_box_42_stats_size",
+                "name": "Status",
+                "state_topic": "hetzner_storage_box/42/status/state",
+                "unique_id": "hetzner_storage_box_42_status",
                 "device": {
                     "identifiers": ["hetzner_storage_box_42"],
                     "name": "my-resource",
@@ -129,5 +155,65 @@ mod tests {
         assert_eq!(payload["name"], json!("Used Size"));
         assert_eq!(payload["unit_of_measurement"], json!("B"));
         assert_eq!(payload["device_class"], json!("data_size"));
+    }
+
+    #[test]
+    fn last_updated_defaults_to_timestamp_device_class() {
+        let mqtt = mqtt_config();
+        let payload = discovery_payload(&mqtt, 42, "my-resource", "last_updated", None);
+
+        assert_eq!(payload["device_class"], json!("timestamp"));
+    }
+
+    #[test]
+    fn last_updated_defaults_to_pretty_name() {
+        let mqtt = mqtt_config();
+        let payload = discovery_payload(&mqtt, 42, "my-resource", "last_updated", None);
+
+        assert_eq!(payload["name"], json!("Last Updated"));
+    }
+
+    #[test]
+    fn default_friendly_name_splits_on_dots_and_underscores() {
+        assert_eq!(default_friendly_name("last_updated"), "Last Updated");
+        assert_eq!(default_friendly_name("stats.size_data"), "Stats Size Data");
+        assert_eq!(default_friendly_name("id"), "Id");
+    }
+
+    #[test]
+    fn last_updated_meta_overrides_default_device_class() {
+        let mqtt = mqtt_config();
+        let meta = FieldMeta {
+            device_class: Some("date".to_string()),
+            ..Default::default()
+        };
+        let payload = discovery_payload(&mqtt, 42, "my-resource", "last_updated", Some(&meta));
+
+        assert_eq!(payload["device_class"], json!("date"));
+    }
+
+    #[test]
+    fn stats_fields_default_to_mib_unit() {
+        let mqtt = mqtt_config();
+        for field in ["stats.size", "stats.size_data", "stats.size_snapshots"] {
+            let payload = discovery_payload(&mqtt, 42, "my-resource", field, None);
+            assert_eq!(
+                payload["unit_of_measurement"],
+                json!("MiB"),
+                "expected MiB default for '{field}'"
+            );
+        }
+    }
+
+    #[test]
+    fn stats_field_meta_overrides_default_mib_unit() {
+        let mqtt = mqtt_config();
+        let meta = FieldMeta {
+            unit_of_measurement: Some("GiB".to_string()),
+            ..Default::default()
+        };
+        let payload = discovery_payload(&mqtt, 42, "my-resource", "stats.size", Some(&meta));
+
+        assert_eq!(payload["unit_of_measurement"], json!("GiB"));
     }
 }
