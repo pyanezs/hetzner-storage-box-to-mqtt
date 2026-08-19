@@ -115,7 +115,13 @@ services:
     environment:
       HETZNER_API_TOKEN: ${HETZNER_API_TOKEN}
       MQTT_PASSWORD: ${MQTT_PASSWORD}
+      TZ: ${TZ:-UTC}
 ```
+
+`general.run_times` in the config is matched against the container's local
+time, not the host's — containers default to UTC. Set `TZ` (e.g.
+`Europe/Berlin`) via the `.env` file mentioned above if `run_times` should
+line up with your local clock instead of UTC.
 
 Then:
 
