@@ -46,7 +46,7 @@ pub async fn publish_all(cfg: &MqttConfig, messages: &[Message]) -> Result<(), M
     if cfg.tls {
         tracing::warn!(
             tls = cfg.tls,
-            "mqtt.tls is not yet implemented; connecting in plaintext"
+            "MQTT tls is not yet implemented; connecting in plaintext"
         );
     }
 

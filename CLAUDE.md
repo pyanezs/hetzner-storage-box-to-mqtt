@@ -28,3 +28,4 @@
 ## Logging
 
 - Always use struct logging!
+- Log lines always start with upper case

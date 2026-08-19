@@ -36,7 +36,7 @@ where
                     attempt = attempt + 1,
                     error = %err,
                     delay_secs = delay,
-                    "attempt failed, retrying"
+                    "Attempt failed, retrying"
                 );
                 tokio::time::sleep(Duration::from_secs(delay)).await;
                 attempt += 1;

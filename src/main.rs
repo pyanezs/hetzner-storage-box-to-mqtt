@@ -47,7 +47,7 @@ async fn main() -> ExitCode {
     let cfg = match cfg_result {
         Ok(c) => c,
         Err(e) => {
-            tracing::error!(error = %format!("{e:#}"), "failed to load config");
+            tracing::error!(error = %format!("{e:#}"), "Failed to load config");
             return ExitCode::FAILURE;
         }
     };
@@ -60,11 +60,12 @@ async fn main() -> ExitCode {
         );
         return match client.fetch_raw(id).await {
             Ok(raw) => {
+                tracing::debug!(box_id = id, raw = %raw, "Fetched raw storage box data");
                 println!("{raw}");
                 ExitCode::SUCCESS
             }
             Err(e) => {
-                tracing::error!(box_id = id, error = %e, "failed to fetch raw storage box data");
+                tracing::error!(box_id = id, error = %e, "Failed to fetch raw storage box data");
                 ExitCode::FAILURE
             }
         };
@@ -73,7 +74,7 @@ async fn main() -> ExitCode {
     match run(&cfg).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            tracing::error!(error = %format!("{e:#}"), "run failed");
+            tracing::error!(error = %format!("{e:#}"), "Run failed");
             ExitCode::FAILURE
         }
     }

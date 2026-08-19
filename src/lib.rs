@@ -37,7 +37,7 @@ pub async fn run(config: &Config) -> Result<()> {
         let box_data = match fetch_result {
             Ok(b) => b,
             Err(e) => {
-                tracing::error!(box_id = sb.id, error = %e, "storage box fetch failed");
+                tracing::error!(box_id = sb.id, error = %e, "Storage box fetch failed");
                 any_box_failed = true;
                 continue;
             }
@@ -50,7 +50,7 @@ pub async fn run(config: &Config) -> Result<()> {
                 tracing::warn!(
                     box_id = sb.id,
                     field = %field,
-                    "field not currently available, skipping"
+                    "Field not currently available, skipping"
                 );
                 continue;
             };
