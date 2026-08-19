@@ -29,4 +29,12 @@ hooks = [
     entry = "typos",
     exclude = "\\.(png|jpe?g|gif|bmp|ico|svg|webp|tiff?)$",
   },
+  {
+    id = "cargo-fmt",
+    name = "cargo fmt",
+    language = "system",
+    entry = "cargo fmt --check",
+    files = "\\.rs$",
+    pass_filenames = false,
+  },
 ]

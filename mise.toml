@@ -22,10 +22,28 @@ echo "Hello from $HOSTNAME"
 '''
 
 #########################################################################
+# Build
+[tasks.cargo-build]
+description = "Build the app"
+run = 'cargo build'
+
+[tasks.cargo-test]
+description = "Run the test suite"
+run = 'cargo test'
+
+[tasks.run]
+description = "Run the app (pass args after --, e.g. mise run run -- --dump-raw 42)"
+run = 'cargo run --'
+
+#########################################################################
 # Lint
 [tasks.prek-run]
 description = "Run prek hooks against staged files"
 run = 'prek run'
+
+[tasks.cargo-fmt]
+description = "Format code with cargo fmt"
+run = 'cargo fmt'
 
 [tasks.lint-cargo-fmt]
 description = "Check code formatting with cargo fmt"
