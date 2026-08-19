@@ -1,0 +1,16 @@
+target/
+tmp/
+.git/
+.github/
+.claude/
+.mcp.json
+.mcp.template.json
+mise.local.toml
+config.toml
+.env
+*.md
+docs/
+.dockerignore
+Dockerfile
+claude.dockerfile
+Smolfile

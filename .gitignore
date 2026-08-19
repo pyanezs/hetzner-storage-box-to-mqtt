@@ -3,3 +3,4 @@
 /.mcp.json
 /mise.local.toml
 /config.toml
+/.env
