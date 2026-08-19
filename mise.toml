@@ -11,7 +11,8 @@ uv = "latest"   # provides `uvx`, used below to run mcp-proxy without a separate
 PROJECT_ROOT = "{{ config_root }}"
 PROJECT_NAME = "{{ config_root | basename }}"
 SMOL_MACHINE = "{{ env.PROJECT_NAME }}-cc"
-MCP_PORT = "8765"
+MCP_MISE_PORT = "8765"
+MCP_MISE_URL = "http://host.smolvm.internal:{{ env.MCP_MISE_PORT }}/sse"
 
 #########################################################################
 # Examples
@@ -70,12 +71,12 @@ sed "s|__MCP_URL__|$MCP_MISE_URL|" \
 '''
 
 [tasks.mcp-proxy]
-description = "Run `mise mcp` behind an SSE proxy on 127.0.0.1:$MCP_PORT (foreground — Ctrl+C to stop)"
+description = "Run `mise mcp` behind an SSE proxy on 127.0.0.1:$MCP_MISE_PORT (foreground — Ctrl+C to stop)"
 run = '''
 uvx --with 'mcp<2.0.0' \
   mcp-proxy \
   --host 0.0.0.0 \
-  --port=$MCP_PORT \
+  --port=$MCP_MISE_PORT \
   -- mise mcp
 '''
 

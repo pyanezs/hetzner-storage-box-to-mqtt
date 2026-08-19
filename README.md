@@ -12,14 +12,48 @@ and publishes it to MQTT, with Home Assistant MQTT Discovery support.
 The app is one-shot: it fetches configured storage boxes once, publishes once, and exits.
 It's meant to be triggered externally (cron, systemd timer), not run as a daemon.
 
+## Table of contents
+
+- [Requirements](#requirements)
+- [Dev environment setup](#dev-environment-setup)
+  - [Quick start](#quick-start)
+  - [Detailed setup](#detailed-setup)
+- [Configuring the app](docs/configuration.md)
+- [Common tasks](#common-tasks)
+- [Using the Claude Code sandbox](#using-the-claude-code-sandbox)
+  - [VM lifecycle](#vm-lifecycle)
+  - [Giving the sandboxed Claude access to `mise` tasks](#giving-the-sandboxed-claude-access-to-mise-tasks)
+- [Links](#links)
+
 ## Requirements
 
-- [mise](https://mise.jdx.dev/) — manages the Rust toolchain and every task in this repo.
+- `mise` — manages the Rust toolchain and every task in this repo (see [Links](#links)).
   Everything below is run through it; you don't need `rustup`/`cargo` installed separately.
 
 ## Dev environment setup
 
-1. Install `mise` (see link above), then from the repo root:
+### Quick start
+
+Install `mise` and the pinned toolchain:
+
+```
+mise trust    # trust this repo's mise.toml
+mise install  # install the pinned Rust toolchain and other tools
+```
+
+Optional — if you also want to use the [Claude Code sandbox](#using-the-claude-code-sandbox),
+build the sandbox VM image, create (but don't start) the VM,
+and wire up the `.mcp.json` file the sandboxed Claude uses to reach the host:
+
+```
+mise run docker-build   # build the claude-box sandbox image
+mise run vm-create      # create the VM from that image (doesn't start it)
+mise run mcp-config     # render .mcp.json from .mcp.template.json
+```
+
+### Detailed setup
+
+1. Install `mise` (see [Links](#links)), then from the repo root:
 
    ```
    mise trust
@@ -50,6 +84,12 @@ It's meant to be triggered externally (cron, systemd timer), not run as a daemon
    mise run lint
    ```
 
+## Configuring the app
+
+See [`docs/configuration.md`](docs/configuration.md) for the config file
+location and precedence, the full `[general]`/`[hetzner]`/`[mqtt]`/
+`[[storage_box]]` schema, environment variable overrides, and CLI flags.
+
 ## Common tasks
 
 Run `mise tasks` for the full list. The ones you'll use day to day:
@@ -75,8 +115,8 @@ before adding a `[[storage_box]]` entry to `config.toml`.
 
 This repo includes a self-contained sandbox for running Claude Code
 against this project without giving it direct access to your host machine:
-a Docker image (`claude.dockerfile`) run inside a [smolvm](https://github.com/smol-ai/smolvm)
-micro-VM (configured by `Smolfile`), with your project directory mounted in
+a Docker image (`claude.dockerfile`) run inside a smolvm micro-VM (see [Links](#links)),
+configured by `Smolfile`, with your project directory mounted in
 and a narrow, explicit egress allowlist.
 
 ### VM lifecycle
@@ -106,30 +146,30 @@ To work around this, `mise mcp` (mise's own MCP server) runs on the **host**
 and is exposed to the sandboxed Claude as an MCP tool server:
 
 ```
-+-----------------------------------------------------------------------+
-|                           VM ($SMOL_MACHINE)                          |
-+-----------------------------------------------------------------------+
-| claude / claude-yolo MCP client                                       |
-|                      .mcp.json -> host.smolvm.internal:$MCP_PORT/sse  |
-| requests:            cargo-build, cargo-test, lint, prek-run          |
-+-----------------------------------------------------------------------+
-                                   |
-                   egress allowed only to:
-                   Smolfile [network] allow_hosts
-                   + host.smolvm.internal (narrow CIDR)
-                   no crates.io / general internet
-                                   |
-== network boundary (smolvm firewall) ================================
-                                   |
-                                   v
-+-----------------------------------------------------------------------+
-|                                  HOST                                 |
-+-----------------------------------------------------------------------+
-| mise run mcp-proxy   SSE proxy on 0.0.0.0:$MCP_PORT, wraps `mise mcp` |
-| mise mcp (server)    receives the request and RUNS the task here:     |
-|                      cargo build / test / fmt / clippy, prek run      |
-|                      using the host's rust toolchain + full network   |
-+-----------------------------------------------------------------------+
++----------------------------------------------------------------------------+
+|                             VM ($SMOL_MACHINE)                             |
++----------------------------------------------------------------------------+
+| claude / claude-yolo MCP client                                            |
+|                      .mcp.json -> host.smolvm.internal:$MCP_MISE_PORT/sse  |
+| requests:            cargo-build, cargo-test, lint, prek-run               |
++----------------------------------------------------------------------------+
+                                      |
+                      egress allowed only to:
+                      Smolfile [network] allow_hosts
+                      + host.smolvm.internal (narrow CIDR)
+                      no crates.io / general internet
+                                      |
+== network boundary (smolvm firewall) =====================================
+                                      |
+                                      v
++----------------------------------------------------------------------------+
+|                                    HOST                                    |
++----------------------------------------------------------------------------+
+| mise run mcp-proxy   SSE proxy on 0.0.0.0:$MCP_MISE_PORT, wraps `mise mcp` |
+| mise mcp (server)    receives the request and RUNS the task here:          |
+|                      cargo build / test / fmt / clippy, prek run           |
+|                      using the host's rust toolchain + full network        |
++----------------------------------------------------------------------------+
 ```
 
 The VM only sends the MCP request over that SSE connection —
@@ -138,28 +178,32 @@ using the host's toolchain and network access,
 since the VM's egress is firewalled off from crates.io.
 
 1. On the host, run `mise run mcp-proxy`.
-   This starts `mise mcp` behind an SSE proxy on `0.0.0.0:$MCP_PORT` (default `8765`),
+   This starts `mise mcp` behind an SSE proxy on `0.0.0.0:$MCP_MISE_PORT` (default `8765`),
    reachable from inside the VM via `host.smolvm.internal`.
-2. Create `mise.local.toml` (gitignored, not tracked) with the URL the VM should use to reach it:
-
-   ```toml
-   [env]
-   MCP_MISE_URL = "http://host.smolvm.internal:8765/sse"
-   ```
-
-3. Run `mise run mcp-config` to render `.mcp.json` (gitignored) from `.mcp.template.json`,
-   substituting that URL in.
+2. Run `mise run mcp-config` to render `.mcp.json` (gitignored) from `.mcp.template.json`,
+   substituting in `MCP_MISE_URL`.
+   `mise.toml` defaults `MCP_MISE_URL` to `http://host.smolvm.internal:$MCP_MISE_PORT/sse`,
+   so this works out of the box for the default single-host setup.
+   Only add a `mise.local.toml` (gitignored, not tracked) with an `[env]` override
+   if `mcp-proxy` is reachable at a different URL.
 
 Once connected, tasks like `cargo-build`/`cargo-test`/`prek-run` run through the `mise` MCP tools
 from inside the sandbox, with real network access on the host side —
 this is how `cargo build`/`test`/`lint` were actually run and verified during development,
 since the sandbox itself can't reach crates.io directly.
 
-**Known issue**: Claude Code's MCP client always probes remote HTTP/SSE servers for OAuth support.
-`mcp-proxy` doesn't implement any OAuth endpoints, so it 404s those probes —
-and depending on the Claude Code version, the client can fail to handle that gracefully,
-breaking the whole MCP session (every task call then fails with a generic
-`MCP error -32602: Invalid request parameters`, not just the auth step).
-If this happens, running `/mcp` and reconnecting has been enough to recover in practice.
-See [anthropics/claude-code#46640](https://github.com/anthropics/claude-code/issues/46640)
-for the upstream tracking issue.
+> [!IMPORTANT]
+> Claude Code's MCP client always probes remote HTTP/SSE servers for OAuth support.
+> `mcp-proxy` doesn't implement any OAuth endpoints, so it 404s those probes —
+> and depending on the Claude Code version, the client can fail to handle that gracefully,
+> breaking the whole MCP session (every task call then fails with a generic
+> `MCP error -32602: Invalid request parameters`, not just the auth step).
+> If this happens, running `/mcp` and reconnecting has been enough to recover in practice.
+> See the upstream tracking issue in [Links](#links).
+
+## Links
+
+- [mise](https://mise.jdx.dev/) — manages the Rust toolchain and every task in this repo
+- [smolvm](https://github.com/smol-ai/smolvm) — the micro-VM used for the Claude Code sandbox
+- [anthropics/claude-code#46640](https://github.com/anthropics/claude-code/issues/46640) —
+  upstream tracking issue for the MCP OAuth-probe bug described above
