@@ -103,10 +103,12 @@ run = '''
 if mise run _vm-exists; then
   echo "Machine $SMOL_MACHINE already exists — skipping create."
 else
-  smolvm machine create --name "$SMOL_MACHINE" --image "$PROJECT_ROOT/tmp/claude-box.tar" -s "$PROJECT_ROOT/Smolfile"
+  smolvm machine create \
+    --name "$SMOL_MACHINE" \
+    --image "$PROJECT_ROOT/tmp/claude-box.tar" \
+    -s "$PROJECT_ROOT/Smolfile"
 fi
 '''
-
 
 [tasks.vm-start]
 description = "Ensure the smolvm machine ($SMOL_MACHINE) exists and is running"
@@ -166,8 +168,8 @@ raw = true
 run = 'mise run vm-shell'
 
 [tasks.vm-recreate]
-description = "Rebuild the image and recreate the machine from scratch"
+description = "Recreate the machine from scratch"
 run = '''
-mise run docker-rebuild
+mise run vm-destroy
 mise run vm-create
 '''
