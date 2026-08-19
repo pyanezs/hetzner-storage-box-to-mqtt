@@ -4,11 +4,40 @@ prek = "0.4.5"
 typos = "1.47.2"
 jq = "latest"
 rust = "latest"
+uv = "latest"   # provides `uvx`, used below to run mcp-proxy without a separate install step
 
 [env]
 PROJECT_ROOT = "{{ config_root }}"
 PROJECT_NAME = "{{ config_root | basename }}"
 SMOL_MACHINE = "{{ env.PROJECT_NAME }}-cc"
+MCP_PORT = "8765"
+
+#########################################################################
+# Examples
+[tasks.hello-mise]
+description = "Print a greeting from the current host"
+run = '''
+echo "Hello from $HOSTNAME"
+'''
+
+#########################################################################
+# MCP
+[tasks.mcp-config]
+description = "Generate .mcp.json from .mcp.template.json"
+run = '''
+sed "s|__MCP_URL__|$MCP_MISE_URL|" \
+  "$PROJECT_ROOT/.mcp.template.json" > "$PROJECT_ROOT/.mcp.json"
+'''
+
+[tasks.mcp-proxy]
+description = "Run `mise mcp` behind an SSE proxy on 127.0.0.1:$MCP_PORT (foreground — Ctrl+C to stop)"
+run = '''
+uvx --with 'mcp<2.0.0' \
+  mcp-proxy \
+  --host 0.0.0.0 \
+  --port=$MCP_PORT \
+  -- mise mcp
+'''
 
 #########################################################################
 # Docker image tasks

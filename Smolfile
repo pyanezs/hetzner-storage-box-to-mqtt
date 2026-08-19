@@ -23,6 +23,8 @@ allow_hosts = [
   "registry.npmjs.org",        # your projects' npm installs
   "github.com",                # git over SSH
 ]
+# To access mise mcp
+allow_cidrs = ["100.96.0.0/30"]   # match what the command above printed
 
 # ── Dev workspace ──────────────────────────────────────
 [dev]

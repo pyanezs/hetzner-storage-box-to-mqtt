@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "mise": {
+      "type": "sse",
+      "url": "__MCP_URL__"
+    }
+  }
+}
