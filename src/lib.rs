@@ -43,6 +43,8 @@ pub async fn run(config: &Config) -> Result<()> {
             }
         };
 
+        let device_name = sb.alias.as_deref().unwrap_or(&box_data.name);
+
         for field in &sb.fields {
             let Some(value) = fields::extract_field(&box_data, field) else {
                 tracing::warn!(
@@ -63,7 +65,7 @@ pub async fn run(config: &Config) -> Result<()> {
                 payload: discovery::discovery_payload(
                     &config.mqtt,
                     sb.id,
-                    &box_data.name,
+                    device_name,
                     field,
                     meta,
                 )

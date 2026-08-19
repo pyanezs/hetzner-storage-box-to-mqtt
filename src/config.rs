@@ -19,13 +19,14 @@ pub struct General {
 
 #[derive(Debug, Deserialize)]
 pub struct Hetzner {
+    #[serde(default)]
     pub api_token: String,
     #[serde(default = "default_api_base_url")]
     pub api_base_url: String,
 }
 
 fn default_api_base_url() -> String {
-    "https://api.hetzner.cloud/v1".to_string()
+    "https://api.hetzner.com/v1".to_string()
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -49,6 +50,8 @@ pub struct StorageBoxConfig {
     pub fields: Vec<String>,
     #[serde(default)]
     pub field_meta: HashMap<String, FieldMeta>,
+    #[serde(default)]
+    pub alias: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -103,6 +106,11 @@ fn validate(config: &Config) -> Result<()> {
                 sb.id
             );
         }
+        if let Some(alias) = &sb.alias
+            && alias.trim().is_empty()
+        {
+            bail!("storage_box {}: alias must not be empty if set", sb.id);
+        }
         for field in &sb.fields {
             if !crate::fields::KNOWN_FIELDS.contains(&field.as_str()) {
                 bail!("storage_box {}: unknown field '{field}' in `fields`", sb.id);
@@ -145,6 +153,7 @@ tls = false
 id = 12345678
 publish = true
 fields = ["name", "stats.size"]
+alias = "Backup Box"
 
 [storage_box.field_meta]
 "stats.size" = { friendly_name = "Used Size", unit_of_measurement = "B" }
@@ -159,7 +168,7 @@ publish = false
         let config: Config = toml::from_str(SAMPLE).unwrap();
         assert!(config.general.retry_enabled);
         assert_eq!(config.hetzner.api_token, "secret-token");
-        assert_eq!(config.hetzner.api_base_url, "https://api.hetzner.cloud/v1");
+        assert_eq!(config.hetzner.api_base_url, "https://api.hetzner.com/v1");
         assert_eq!(config.mqtt.host, "mqtt.example.local");
         assert_eq!(config.storage_box.len(), 2);
         assert_eq!(config.storage_box[0].id, 12345678);
@@ -170,7 +179,21 @@ publish = false
                 .as_deref(),
             Some("Used Size")
         );
+        assert_eq!(config.storage_box[0].alias.as_deref(), Some("Backup Box"));
         assert!(!config.storage_box[1].publish);
+    }
+
+    #[test]
+    fn alias_defaults_to_none_when_absent() {
+        let config: Config = toml::from_str(SAMPLE).unwrap();
+        assert!(config.storage_box[1].alias.is_none());
+    }
+
+    #[test]
+    fn rejects_empty_alias() {
+        let mut config: Config = toml::from_str(SAMPLE).unwrap();
+        config.storage_box[0].alias = Some(String::new());
+        assert!(validate(&config).is_err());
     }
 
     #[test]
@@ -197,6 +220,36 @@ publish = false
         let mut config: Config = toml::from_str(SAMPLE).unwrap();
         config.hetzner.api_token = String::new();
         assert!(validate(&config).is_err());
+    }
+
+    #[test]
+    fn api_token_can_be_omitted_from_file_and_supplied_via_env() {
+        const NO_TOKEN: &str = r#"
+[general]
+retry_enabled = true
+
+[hetzner]
+
+[mqtt]
+host = "mqtt.example.local"
+port = 1883
+username = "mqtt-user"
+password = "mqtt-pass"
+client_id = "hetzner-storage-box-to-mqtt"
+base_topic = "hetzner_storage_box"
+discovery_prefix = "homeassistant"
+tls = false
+"#;
+        let mut config: Config = toml::from_str(NO_TOKEN).unwrap();
+        assert_eq!(config.hetzner.api_token, "");
+        assert!(validate(&config).is_err());
+
+        apply_env_overrides(&mut config, &|key| match key {
+            "HETZNER_API_TOKEN" => Some("from-env".to_string()),
+            _ => None,
+        });
+        assert_eq!(config.hetzner.api_token, "from-env");
+        assert!(validate(&config).is_ok());
     }
 
     #[test]
