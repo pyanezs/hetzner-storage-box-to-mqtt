@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Update dependencies in Cargo.lock to the latest versions allowed by Cargo.toml"
+set -euo pipefail
+
+exec cargo update "$@"
