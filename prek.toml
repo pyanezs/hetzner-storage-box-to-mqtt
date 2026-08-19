@@ -33,7 +33,7 @@ hooks = [
     id = "cargo-fmt",
     name = "cargo fmt",
     language = "system",
-    entry = "cargo fmt --check",
+    entry = "mise run lint-cargo-fmt",
     files = "\\.rs$",
     pass_filenames = false,
   },
