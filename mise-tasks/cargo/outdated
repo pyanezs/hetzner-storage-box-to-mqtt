@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Check for outdated dependencies with cargo-outdated"
+set -euo pipefail
+
+exec cargo outdated "$@"

@@ -6,6 +6,8 @@ jq = "latest"
 rust = { version = "latest", components = "clippy,rustfmt" }
 rust-analyzer = "latest"
 uv = "latest"   # provides `uvx`, used below to run mcp-proxy without a separate install step
+cargo-binstall = "latest"
+"cargo:cargo-outdated" = "latest"
 
 [env]
 PROJECT_ROOT = "{{ config_root }}"
