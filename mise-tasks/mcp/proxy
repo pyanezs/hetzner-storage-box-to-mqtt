@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Run `mise mcp` behind an SSE proxy on 127.0.0.1:$MCP_MISE_PORT (foreground — Ctrl+C to stop)"
+set -euo pipefail
+
+uvx --with 'mcp<2.0.0' \
+  mcp-proxy \
+  --host 0.0.0.0 \
+  --port=$MCP_MISE_PORT \
+  -- mise mcp

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Run all lints: cargo fmt then cargo clippy"
+set -euo pipefail
+
+mise run cargo:fmt-check
+mise run cargo:clippy

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Generate .mcp.json from .mcp.template.json"
+set -euo pipefail
+
+sed "s|__MCP_URL__|$MCP_MISE_URL|" \
+  "$PROJECT_ROOT/.mcp.template.json" > "$PROJECT_ROOT/.mcp.json"

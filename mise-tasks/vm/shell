@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Open an interactive bash shell inside the smolvm machine ($SMOL_MACHINE)"
+#MISE raw=true
+set -euo pipefail
+
+mise run vm:start
+smolvm machine exec --name "$SMOL_MACHINE" -it -- /bin/bash

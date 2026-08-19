@@ -52,9 +52,9 @@ build the sandbox VM image, create (but don't start) the VM,
 and wire up the `.mcp.json` file the sandboxed Claude uses to reach the host:
 
 ```
-mise run docker-build   # build the claude-box sandbox image
-mise run vm-create      # create the VM from that image (doesn't start it)
-mise run mcp-config     # render .mcp.json from .mcp.template.json
+mise run vm:image-build # build the claude-box sandbox image
+mise run vm:create      # create the VM from that image (doesn't start it)
+mise run mcp:config     # render .mcp.json from .mcp.template.json
 ```
 
 ### Detailed setup
@@ -85,8 +85,8 @@ mise run mcp-config     # render .mcp.json from .mcp.template.json
 3. Verify the setup:
 
    ```
-   mise run cargo-build
-   mise run cargo-test
+   mise run cargo:build
+   mise run cargo:test
    mise run lint
    ```
 
@@ -102,14 +102,13 @@ Run `mise tasks` for the full list. The ones you'll use day to day:
 
 | Task | What it does |
 |---|---|
-| `mise run cargo-build` | `cargo build` |
-| `mise run cargo-test` | `cargo test` (unit tests + `wiremock`-based Hetzner API tests) |
-| `mise run run -- <args>` | `cargo run --`, e.g. `mise run run -- --config /path/to/config.toml` |
 | `mise run lint` | `cargo fmt --check` then `cargo clippy` |
-| `mise run cargo-fmt` | `cargo fmt` (writes changes) |
-| `mise run prek-run` | Runs the pre-commit-style hooks in `prek.toml` against staged files |
+| `mise run cargo:build` | `cargo build` |
+| `mise run cargo:test` | `cargo test` (unit tests + `wiremock`-based Hetzner API tests) |
+| `mise run cargo:fmt` | `cargo fmt` (writes changes) |
+| `mise run git:prek-run` | Runs the pre-commit-style hooks in `prek.toml` against staged files |
 
-`prek-run` must pass before creating a commit — this is enforced by convention (see `CLAUDE.md`),
+`git:prek-run` must pass before creating a commit — this is enforced by convention (see `CLAUDE.md`),
 not by a git hook, so run it yourself before committing.
 
 ## Using the Claude Code sandbox
@@ -123,11 +122,11 @@ and a narrow, explicit egress allowlist.
 ### VM lifecycle
 
 ```
-mise run vm-up        # build the image (if needed), create and start the VM, open a shell in it
-mise run vm-shell     # open a shell in an already-running VM (starts it first if needed)
-mise run vm-stop      # stop the VM without deleting it
-mise run vm-destroy   # stop and delete the VM
-mise run vm-recreate  # destroy and recreate the VM from scratch
+mise run vm:up        # build the image (if needed), create and start the VM, open a shell in it
+mise run vm:shell     # open a shell in an already-running VM (starts it first if needed)
+mise run vm:stop      # stop the VM without deleting it
+mise run vm:destroy   # stop and delete the VM
+mise run vm:recreate  # destroy and recreate the VM from scratch
 ```
 
 Inside the VM, the project directory is mounted live at `/workspace` in both directions,
@@ -135,8 +134,8 @@ and `claude` is preinstalled — run it there to work on this project inside the
 A `claude-yolo` alias is also predefined in the VM's `~/.bashrc`,
 running `claude --dangerously-skip-permissions`.
 Skipping permission prompts is reasonable here since the VM is already sandboxed from the host.
-The alias is baked into the image, so an existing VM needs `mise run docker-rebuild`
-(or `mise run vm-recreate`) before it picks up.
+The alias is baked into the image, so an existing VM needs `mise run vm:image-rebuild`
+(or `mise run vm:recreate`) before it picks up.
 
 ### Giving the sandboxed Claude access to `mise` tasks
 
@@ -152,7 +151,7 @@ and is exposed to the sandboxed Claude as an MCP tool server:
 +----------------------------------------------------------------------------+
 | claude / claude-yolo MCP client                                            |
 |                      .mcp.json -> host.smolvm.internal:$MCP_MISE_PORT/sse  |
-| requests:            cargo-build, cargo-test, lint, prek-run               |
+| requests:            cargo:build, cargo:test, lint, git:prek-run           |
 +----------------------------------------------------------------------------+
                                       |
                       egress allowed only to:
@@ -166,7 +165,7 @@ and is exposed to the sandboxed Claude as an MCP tool server:
 +----------------------------------------------------------------------------+
 |                                    HOST                                    |
 +----------------------------------------------------------------------------+
-| mise run mcp-proxy   SSE proxy on 0.0.0.0:$MCP_MISE_PORT, wraps `mise mcp` |
+| mise run mcp:proxy   SSE proxy on 0.0.0.0:$MCP_MISE_PORT, wraps `mise mcp` |
 | mise mcp (server)    receives the request and RUNS the task here:          |
 |                      cargo build / test / fmt / clippy, prek run           |
 |                      using the host's rust toolchain + full network        |
@@ -178,17 +177,17 @@ The VM only sends the MCP request over that SSE connection —
 using the host's toolchain and network access,
 since the VM's egress is firewalled off from crates.io.
 
-1. On the host, run `mise run mcp-proxy`.
+1. On the host, run `mise run mcp:proxy`.
    This starts `mise mcp` behind an SSE proxy on `0.0.0.0:$MCP_MISE_PORT` (default `8765`),
    reachable from inside the VM via `host.smolvm.internal`.
-2. Run `mise run mcp-config` to render `.mcp.json` (gitignored) from `.mcp.template.json`,
+2. Run `mise run mcp:config` to render `.mcp.json` (gitignored) from `.mcp.template.json`,
    substituting in `MCP_MISE_URL`.
    `mise.toml` defaults `MCP_MISE_URL` to `http://host.smolvm.internal:$MCP_MISE_PORT/sse`,
    so this works out of the box for the default single-host setup.
    Only add a `mise.local.toml` (gitignored, not tracked) with an `[env]` override
    if `mcp-proxy` is reachable at a different URL.
 
-Once connected, tasks like `cargo-build`/`cargo-test`/`prek-run` run through the `mise` MCP tools
+Once connected, tasks like `cargo:build`/`cargo:test`/`git:prek-run` run through the `mise` MCP tools
 from inside the sandbox, with real network access on the host side —
 this is how `cargo build`/`test`/`lint` were actually run and verified during development,
 since the sandbox itself can't reach crates.io directly.

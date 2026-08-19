@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+#MISE description="Ensure the smolvm machine ($SMOL_MACHINE) exists and is running"
+set -euo pipefail
+
+if ! mise run vm:_exists; then
+  mise run vm:create
+fi
+if mise run vm:_running; then
+  echo "Machine $SMOL_MACHINE is already running — skipping start."
+else
+  smolvm machine start --name "$SMOL_MACHINE"
+  for i in $(seq 1 10); do
+    mise run vm:_running && break
+    sleep 0.3
+  done
+  if ! mise run vm:_running; then
+    echo "Failed to start $SMOL_MACHINE — check 'smolvm machine status --name $SMOL_MACHINE'." >&2
+    exit 1
+  fi
+fi

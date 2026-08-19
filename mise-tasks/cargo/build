@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Build the app"
+set -euo pipefail
+
+cargo build

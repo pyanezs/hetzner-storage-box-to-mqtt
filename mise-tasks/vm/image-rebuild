@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Clean and rebuild the claude-box image from scratch"
+set -euo pipefail
+
+mise run vm:image-clean
+mise run vm:image-build

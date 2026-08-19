@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+#MISE description="Build the claude-box Docker image and save it to tmp/claude-box.tar (skips if the tarball already exists)"
+set -euo pipefail
+
+mkdir -p "$PROJECT_ROOT/tmp"
+if [ ! -f "$PROJECT_ROOT/tmp/claude-box.tar" ]; then
+  docker build \
+    -f claude.dockerfile \
+    --build-arg UID=$(id -u) \
+    --build-arg GID=$(id -g) \
+    --build-arg GIT_USER_NAME="$(git config user.name || true)" \
+    --build-arg GIT_USER_EMAIL="$(git config user.email || true)" \
+    -t $PROJECT_NAME-claude-box "$PROJECT_ROOT"
+  docker save $PROJECT_NAME-claude-box -o "$PROJECT_ROOT/tmp/claude-box.tar"
+fi

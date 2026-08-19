@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Lint code with cargo clippy"
+set -euo pipefail
+
+cargo clippy

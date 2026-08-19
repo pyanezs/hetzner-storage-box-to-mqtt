@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Print a greeting from the current host"
+set -euo pipefail
+
+echo "Hello from $HOSTNAME"

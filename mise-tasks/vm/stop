@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+#MISE description="Stop the smolvm machine ($SMOL_MACHINE) if it's running"
+set -euo pipefail
+
+if ! mise run vm:_exists; then
+  echo "Machine $SMOL_MACHINE does not exist — nothing to stop."
+elif mise run vm:_running; then
+  smolvm machine stop --name "$SMOL_MACHINE"
+else
+  echo "Machine $SMOL_MACHINE is not running — skipping stop."
+fi

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Remove the claude-box Docker image and delete tmp/claude-box.tar"
+#MISE confirm="This will permanently delete the image $PROJECT_NAME. Continue?"
+set -euo pipefail
+
+docker rmi $PROJECT_NAME-claude-box 2>/dev/null || true
+rm -f "$PROJECT_ROOT/tmp/claude-box.tar"

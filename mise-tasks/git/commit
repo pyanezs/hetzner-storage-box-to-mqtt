@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Create a git commit (pass args after --, e.g. mise run git:commit -- -m \"message\")"
+set -euo pipefail
+
+exec git commit "$@"

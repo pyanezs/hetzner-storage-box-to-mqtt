@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+#MISE description="Create the smolvm machine ($SMOL_MACHINE) from the built image if it doesn't already exist"
+#MISE depends=["vm:image-build"]
+set -euo pipefail
+
+if mise run vm:_exists; then
+  echo "Machine $SMOL_MACHINE already exists — skipping create."
+else
+  smolvm machine create \
+    --name "$SMOL_MACHINE" \
+    --image "$PROJECT_ROOT/tmp/claude-box.tar" \
+    -s "$PROJECT_ROOT/Smolfile"
+fi

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Build the app's Docker image from the Dockerfile (skips if the image already exists)"
+set -euo pipefail
+
+if docker image inspect hetzner-storage-box-to-mqtt:latest >/dev/null 2>&1; then
+  echo "Image hetzner-storage-box-to-mqtt:latest already exists — skipping build."
+else
+  docker build -t hetzner-storage-box-to-mqtt:latest "$PROJECT_ROOT"
+fi

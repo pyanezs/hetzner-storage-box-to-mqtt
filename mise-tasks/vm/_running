@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Internal: exit 0 if the smolvm machine $SMOL_MACHINE is running"
+#MISE hide=true
+#MISE quiet=true
+set -euo pipefail
+
+smolvm machine ls --json | jq -e --arg n "$SMOL_MACHINE" '[.. | objects | select(.name? == $n) | select(.state? == "running" or .status? == "running")] | length > 0' >/dev/null

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#MISE description="Stop and delete the smolvm machine ($SMOL_MACHINE)"
+#MISE confirm="This will permanently delete the machine $SMOL_MACHINE. Continue?"
+set -euo pipefail
+
+if ! mise run vm:_exists; then
+  echo "Machine $SMOL_MACHINE does not exist — nothing to delete."
+else
+  smolvm machine delete --name "$SMOL_MACHINE" --force
+fi

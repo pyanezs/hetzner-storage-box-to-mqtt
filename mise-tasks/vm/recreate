@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Recreate the machine from scratch"
+set -euo pipefail
+
+mise run vm:destroy
+mise run vm:create

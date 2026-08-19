@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Create, start, and shell into the smolvm machine ($SMOL_MACHINE)"
+#MISE raw=true
+set -euo pipefail
+
+exec mise run vm:shell

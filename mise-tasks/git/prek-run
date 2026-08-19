@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Run prek hooks against staged files"
+set -euo pipefail
+
+prek run
