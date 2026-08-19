@@ -17,6 +17,8 @@
 - Do not add Claude to the commits authors.
 - Always call `mise prek-run` before creating a commit.
   If hooks fail, you should not create a commit.
+- Use `mise run git-commit --` to create commits.
+  It forwards its arguments to `git commit`.
 - NEVER add yourself as a co-author
 - Keep commits simple. Use a title, and list changes in
   short phrases using bullet points

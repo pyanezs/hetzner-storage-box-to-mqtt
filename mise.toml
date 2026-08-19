@@ -42,6 +42,10 @@ run = 'cargo run --'
 description = "Run prek hooks against staged files"
 run = 'prek run'
 
+[tasks.git-commit]
+description = "Create a git commit (pass args after --, e.g. mise run git-commit -- -m \"message\")"
+run = 'git commit'
+
 [tasks.cargo-fmt]
 description = "Format code with cargo fmt"
 run = 'cargo fmt'
