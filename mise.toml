@@ -21,6 +21,12 @@ echo "Hello from $HOSTNAME"
 '''
 
 #########################################################################
+# Lint
+[tasks.prek-run]
+description = "Run prek hooks against staged files"
+run = 'prek run'
+
+#########################################################################
 # MCP
 [tasks.mcp-config]
 description = "Generate .mcp.json from .mcp.template.json"
