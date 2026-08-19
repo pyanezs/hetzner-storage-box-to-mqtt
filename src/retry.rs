@@ -33,8 +33,10 @@ where
                 }
                 let delay = DELAYS_SECS[attempt];
                 tracing::warn!(
-                    "attempt {} failed: {err}, retrying in {delay}s",
-                    attempt + 1
+                    attempt = attempt + 1,
+                    error = %err,
+                    delay_secs = delay,
+                    "attempt failed, retrying"
                 );
                 tokio::time::sleep(Duration::from_secs(delay)).await;
                 attempt += 1;

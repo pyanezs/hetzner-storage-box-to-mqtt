@@ -24,3 +24,7 @@
   ## Mise
 
 - Use the MCP to run mise tasks.
+
+## Logging
+
+- Always use struct logging!

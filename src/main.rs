@@ -47,7 +47,7 @@ async fn main() -> ExitCode {
     let cfg = match cfg_result {
         Ok(c) => c,
         Err(e) => {
-            tracing::error!("{e:#}");
+            tracing::error!(error = %format!("{e:#}"), "failed to load config");
             return ExitCode::FAILURE;
         }
     };
@@ -64,7 +64,7 @@ async fn main() -> ExitCode {
                 ExitCode::SUCCESS
             }
             Err(e) => {
-                tracing::error!("{e}");
+                tracing::error!(box_id = id, error = %e, "failed to fetch raw storage box data");
                 ExitCode::FAILURE
             }
         };
@@ -73,7 +73,7 @@ async fn main() -> ExitCode {
     match run(&cfg).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            tracing::error!("{e:#}");
+            tracing::error!(error = %format!("{e:#}"), "run failed");
             ExitCode::FAILURE
         }
     }

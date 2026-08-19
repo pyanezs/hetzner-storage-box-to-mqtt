@@ -44,7 +44,10 @@ impl Retryable for MqttError {
 /// a single unit — see module docs above.
 pub async fn publish_all(cfg: &MqttConfig, messages: &[Message]) -> Result<(), MqttError> {
     if cfg.tls {
-        tracing::warn!("mqtt.tls = true but TLS is not yet implemented — connecting in plaintext");
+        tracing::warn!(
+            tls = cfg.tls,
+            "mqtt.tls is not yet implemented; connecting in plaintext"
+        );
     }
 
     let mut options = MqttOptions::new(&cfg.client_id, &cfg.host, cfg.port);
